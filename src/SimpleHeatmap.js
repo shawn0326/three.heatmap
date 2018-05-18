@@ -1,6 +1,6 @@
 /**
  * @author shawn0326, jinggang, larrow 2018.4.1
- * Heatmap
+ * SimpleHeatmap.js
  */
 function SimpleHeatmap(canvas) {
 
@@ -25,6 +25,20 @@ function SimpleHeatmap(canvas) {
     this._canvasHeight = this._areaHeight = this._canvas.height;
 
     this._alpha = false;
+
+    this._grad = {};
+    var gradCanvas = this._createCanvas();
+    gradCanvas.width = 1;
+    gradCanvas.height = 256;
+    this._gradCtx = gradCanvas.getContext('2d');
+    this._gradCache = {};
+    this._gradData = null;
+
+    this._r = 0;
+    this._radius = 0;
+    this._blur = 0;
+    this._circle = this._createCanvas();
+    this._cirCtx = this._circle.getContext('2d');
 
 }
 
@@ -51,86 +65,50 @@ SimpleHeatmap.prototype = Object.assign(Object.create({}), {
         this._dataDirty = true;
         return this;
     },
-
-    max: function(max) {
-        this._max = max;
-        this._dataDirty = true;
-        return this;
-    },
-    min: function(min) {
-        this._min = min;
-        this._dataDirty = true;
-        return this;
-    },
     add: function(point) {
         this._data.push(point);
         this._dataDirty = true;
         return this;
     },
-
     clear: function() {
         this._data = [];
         this._dataDirty = true;
         return this;
     },
 
-    radius: function(r, blur) {
-        blur = blur === undefined ? 15 : blur;
-
-        // create a grayscale blurred circle image that we'll use for drawing points
-        var circle = this._circle = this._createCanvas(),
-            ctx = circle.getContext('2d'),
-            r2 = this._r = r + blur;
-
-        circle.width = circle.height = r2 * 2;
-
-        ctx.shadowOffsetX = ctx.shadowOffsetY = r2 * 2;
-        ctx.shadowBlur = blur;
-        ctx.shadowColor = 'black';
-
-        ctx.beginPath();
-        ctx.arc(-r2, -r2, r, 0, Math.PI * 2, true);
-        ctx.closePath();
-        ctx.fill();
-
+    max: function(max) {
+        if(this._max !== max) {
+            this._max = max;
+            this._dataDirty = true;
+        }
+        return this;
+    },
+    min: function(min) {
+        if(this._min !== min) {
+            this._min = min;
+            this._dataDirty = true;
+        }
         return this;
     },
 
     setCanvasSize: function(width, height) {
-        this._canvasWidth = this._canvas.width = width;
-        this._canvasHeight = this._canvas.height = height;
+        if(this._canvasWidth !== width || this._canvasHeight !== height) {
+            this._canvasWidth = this._canvas.width = width;
+            this._canvasHeight = this._canvas.height = height;
 
-        this._dataDirty = true;
+            this._dataDirty = true;
+        }
 
         return this;
     },
 
     setAreaSize: function(width, height) {
-        this._areaWidth = width;
-        this._areaHeight = height;
+        if(this._areaWidth !== width || this._areaHeight !== height) {
+            this._areaWidth = width;
+            this._areaHeight = height;
 
-        this._dataDirty = true;
-
-        return this;
-    },
-
-    gradient: function(grad) {
-        // create a 256x1 gradient that we'll use to turn a grayscale heatmap into a colored one
-        var canvas = this._createCanvas(),
-            ctx = canvas.getContext('2d'),
-            gradient = ctx.createLinearGradient(0, 0, 0, 256);
-
-        canvas.width = 1;
-        canvas.height = 256;
-
-        for (var i in grad) {
-            gradient.addColorStop(+i, grad[i]);
+            this._dataDirty = true;
         }
-
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 1, 256);
-
-        this._grad = ctx.getImageData(0, 0, 1, 256).data;
 
         return this;
     },
@@ -140,9 +118,70 @@ SimpleHeatmap.prototype = Object.assign(Object.create({}), {
         return this;
     },
 
-    draw: function(alpha) {
-        if (!this._circle) this.radius(this.defaultRadius);
-        if (!this._grad) this.gradient(this.defaultGradient);
+    radius: function(r, blur) {
+
+        blur = (blur !== undefined) ? blur : 15;
+
+        if(r === this._radius && blur === this._blur) {
+            return this;
+        }
+
+        this._radius = r;
+        this._blur = blur;
+        this._r = this._radius + this._blur;
+
+        // create a grayscale blurred circle image that we'll use for drawing points
+        var circle = this._circle;
+        var ctx = this._cirCtx;
+
+        circle.width = circle.height = this._r * 2;
+
+        ctx.shadowOffsetX = ctx.shadowOffsetY = this._r * 2;
+        ctx.shadowBlur = blur;
+        ctx.shadowColor = 'black';
+
+        ctx.beginPath();
+        ctx.arc(-this._r, -this._r, r, 0, Math.PI * 2, true);
+        ctx.closePath();
+        ctx.fill(); 
+
+        return this;
+    },
+
+    gradient: function(grad) {
+
+        var code1 = this._getGradientCode(this._grad);
+        var code2 = this._getGradientCode(grad);
+
+        if(code1 === code2) {
+            return this;
+        }
+
+        this._grad = Object.assign({}, grad); // clone
+
+        if(this._gradCache[code2]) {
+            this._gradData = this._gradCache[code2];
+            return this;
+        }
+
+        // create a 256x1 gradient that we'll use to turn a grayscale heatmap into a colored one
+        var gradient = this._gradCtx.createLinearGradient(0, 0, 0, 256);
+        for (var i in grad) {
+            gradient.addColorStop(+i, grad[i]);
+        }
+
+        this._gradCtx.fillStyle = gradient;
+        this._gradCtx.fillRect(0, 0, 1, 256);
+
+        this._gradData = this._gradCtx.getImageData(0, 0, 1, 256).data;
+        this._gradCache[code2] = this._gradData;
+
+        return this;
+    },
+
+    draw: function() {
+        if (this._r === 0) this.radius(this.defaultRadius);
+        if (!this._gradData) this.gradient(this.defaultGradient);
 
         if(this._dataDirty) {
             this._transformData();
@@ -161,7 +200,7 @@ SimpleHeatmap.prototype = Object.assign(Object.create({}), {
 
         // colorize the heatmap, using opacity value of each pixel to get the right color from our gradient
         var colored = ctx.getImageData(0, 0, this._canvasWidth, this._canvasHeight);
-        this._colorize(colored.data, this._grad, this._alpha);
+        this._colorize(colored.data, this._gradData, this._alpha);
         ctx.putImageData(colored, 0, 0);
 
         return this;
@@ -200,6 +239,16 @@ SimpleHeatmap.prototype = Object.assign(Object.create({}), {
                 pixels[i + 3] = 255;
             }
         }
+    },
+
+    _getGradientCode: function(grad) {
+        var code = "grad:(";
+        for(var i in grad) {
+            code += i + ":" + grad[i] + ",";
+        }
+        code += ")"
+
+        return code;
     },
 
     _createCanvas: function() {
