@@ -212,13 +212,13 @@ SimpleHeatmap.prototype = Object.assign(Object.create({}), {
         var scaleXFactor = this._canvasWidth / this._areaWidth;
         var scaleYFactor = this._canvasHeight / this._areaHeight;
 
-        this._data.map(d => {
+        this._data.map(function(d) {
             var x = d[0];
             var y = d[1];
 
             x = x * scaleXFactor + this._canvasWidth / 2;
             y = y * scaleYFactor + this._canvasHeight / 2;
-            a = Math.min(Math.max((d[2] - this._min) / (this._max - this._min), 0.05), 1);
+            var a = Math.min(Math.max((d[2] - this._min) / (this._max - this._min), 0.05), 1);
 
             this._transformedData.push([x, y, a]);
         });
@@ -246,7 +246,7 @@ SimpleHeatmap.prototype = Object.assign(Object.create({}), {
         for(var i in grad) {
             code += i + ":" + grad[i] + ",";
         }
-        code += ")"
+        code += ")";
 
         return code;
     },
