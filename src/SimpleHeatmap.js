@@ -212,15 +212,17 @@ SimpleHeatmap.prototype = Object.assign(Object.create({}), {
         var scaleXFactor = this._canvasWidth / this._areaWidth;
         var scaleYFactor = this._canvasHeight / this._areaHeight;
 
+        var scope = this;
+
         this._data.map(function(d) {
             var x = d[0];
             var y = d[1];
 
-            x = x * scaleXFactor + this._canvasWidth / 2;
-            y = y * scaleYFactor + this._canvasHeight / 2;
-            var a = Math.min(Math.max((d[2] - this._min) / (this._max - this._min), 0.05), 1);
+            x = x * scaleXFactor + scope._canvasWidth / 2;
+            y = y * scaleYFactor + scope._canvasHeight / 2;
+            var a = Math.min(Math.max((d[2] - scope._min) / (scope._max - scope._min), 0.05), 1);
 
-            this._transformedData.push([x, y, a]);
+            scope._transformedData.push([x, y, a]);
         });
     },
 
