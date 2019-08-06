@@ -61,7 +61,7 @@ var screenMat2 = new THREE.ShaderMaterial({
 
 var screenMats = [screenMat1, screenMat2];
 
-var screen = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), screenMats[1]);
+var screen = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), screenMats[0]);
 screen.renderOrder = 100;
 screen.position.y = 5;
 scene.add(screen);
